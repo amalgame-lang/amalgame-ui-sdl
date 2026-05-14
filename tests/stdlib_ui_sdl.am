@@ -1,0 +1,29 @@
+import Amalgame.UI.SDL
+
+class Program {
+    public static void Main() {
+        // Smoke: DetectOS() returns one of "light" / "dark"
+        let theme: string = Theme.DetectOS()
+        if (theme == "light" || theme == "dark") {
+            Console.WriteLine("[PASS] DetectOS returns light/dark")
+        } else {
+            Console.WriteLine("[FAIL] DetectOS returned: " + theme)
+        }
+
+        // Smoke: Color constructor populates fields
+        let c: Color = new Color(255, 128, 64, 200)
+        if (c.R == 255 && c.G == 128 && c.B == 64 && c.A == 200) {
+            Console.WriteLine("[PASS] Color fields")
+        } else {
+            Console.WriteLine("[FAIL] Color fields")
+        }
+
+        // Smoke: Rect constructor populates fields
+        let r: Rect = new Rect(10, 20, 100, 200)
+        if (r.X == 10 && r.Y == 20 && r.W == 100 && r.H == 200) {
+            Console.WriteLine("[PASS] Rect fields")
+        } else {
+            Console.WriteLine("[FAIL] Rect fields")
+        }
+    }
+}

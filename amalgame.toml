@@ -1,0 +1,34 @@
+# Package manifest — amalgame-ui-sdl
+#
+# SDL2/SDL3 binding for Amalgame. Exposes a thin Window / Surface /
+# Event / Color / Rect surface that mirrors SDL's event loop, plus
+# a runtime helper to detect the OS color scheme (light/dark).
+# Companion package: `amalgame-ui-forms` ships the retained-mode
+# Forms toolkit on top of this binding.
+#
+# Default backend is SDL2 (LTS, universally packaged). Define
+# AMALGAME_UI_USE_SDL3 at compile time to switch to SDL3.
+#
+# Installation:
+#
+#   amc package add ui-sdl                                # via curated index (TODO)
+#   amc package add github.com/amalgame-lang/amalgame-ui-sdl@v0.0.1
+
+[package]
+name              = "amalgame-ui-sdl"
+version           = "0.0.1-dev"
+license           = "Apache-2.0"
+description       = "SDL2/SDL3 binding — Window/Surface/Event/Color/Rect + OS theme detection."
+authors           = ["Bastien Mouget"]
+required-amalgame = ">=0.8.0"
+schema-version    = 1
+
+[stdlib]
+# Primary class. The facade also exposes Event, Surface, Color, Rect
+# as sibling classes under the same namespace, visible after
+# `import Amalgame.UI.SDL`.
+class     = "Window"
+header    = "runtime/Amalgame_UI.h"
+namespace = "Amalgame.UI.SDL"
+facade    = "facade.am"
+libs      = ["SDL2", "SDL2_ttf"]
