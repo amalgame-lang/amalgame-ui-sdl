@@ -201,6 +201,42 @@ public class Font {
         return f
     }
 
+    // Probe well-known font paths per OS and return the first
+    // one that loads. Order: Linux DejaVu → macOS system →
+    // Windows arial.ttf. Returns null only when every probe
+    // fails (very minimal install — should be rare).
+    public static Font LoadDefault(size: int) {
+        let f: Font = new Font()
+        f.Size = size
+        let handle: int = 0
+        @c {
+            const char* candidates[] = {
+                /* Linux */
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/TTF/DejaVuSans.ttf",
+                "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+                "/usr/share/fonts/liberation2/LiberationSans-Regular.ttf",
+                /* macOS */
+                "/System/Library/Fonts/Helvetica.ttc",
+                "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/Library/Fonts/Arial.ttf",
+                /* Windows */
+                "C:\\Windows\\Fonts\\arial.ttf",
+                "C:\\Windows\\Fonts\\segoeui.ttf",
+                NULL,
+            };
+            AmalgameUIFont* _h = NULL;
+            for (int i = 0; candidates[i]; i++) {
+                _h = Amalgame_UI_loadFont((code_string)candidates[i], (int)size);
+                if (_h) break;
+            }
+            if (!_h) return NULL;
+            handle = (i64)(intptr_t)_h;
+        }
+        f.SetHandle(handle)
+        return f
+    }
+
     public void Destroy() {
         @c {
             Amalgame_UI_destroyFont((AmalgameUIFont*)(intptr_t)self->Handle);
