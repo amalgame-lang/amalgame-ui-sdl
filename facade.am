@@ -151,6 +151,21 @@ public class Event {
     public int GetMods()   { return this.Mods }
     public int GetW()      { return this.W }
     public int GetH()      { return this.H }
+
+    // Setters — used by Window.Poll/Wait to populate the Event
+    // from the runtime's flat AmalgameUIEvent payload. Direct
+    // `ev->Field` writes in @c blocks blow up when the cgen
+    // forward-declares Event in another translation unit
+    // (combined `amc -o test.am facade.am` mode); going through
+    // a setter sidesteps the incomplete-typedef issue because
+    // gcc only needs the function signature.
+    public void SetKind(v: int)   { this.Kind = v }
+    public void SetX(v: int)      { this.X = v }
+    public void SetY(v: int)      { this.Y = v }
+    public void SetButton(v: int) { this.Button = v }
+    public void SetMods(v: int)   { this.Mods = v }
+    public void SetW(v: int)      { this.W = v }
+    public void SetH(v: int)      { this.H = v }
 }
 
 // ─── Font ──────────────────────────────────────────────
@@ -167,16 +182,20 @@ public class Font {
         this.Size = 0
     }
 
+    public void SetHandle(h: int) { this.Handle = h }
+
     // Load a TTF font from disk. Returns null on failure (missing
     // file, unsupported format, TTF_Init failure).
     public static Font Load(path: string, size: int) {
         let f: Font = new Font()
         f.Size = size
+        let handle: int = 0
         @c {
             AmalgameUIFont* _h = Amalgame_UI_loadFont(path, size);
             if (!_h) return NULL;
-            f->Handle = (i64)(intptr_t)_h;
+            handle = (i64)(intptr_t)_h;
         }
+        f.SetHandle(handle)
         return f
     }
 
@@ -217,15 +236,19 @@ public class Window {
         this.Handle = 0
     }
 
+    public void SetHandle(h: int) { this.Handle = h }
+
     // Open a new resizable window. Returns null on failure
     // (e.g. SDL_Init fails, no DISPLAY on Linux, etc.).
     public static Window New(title: string, width: int, height: int) {
         let w: Window = new Window()
+        let handle: int = 0
         @c {
             AmalgameUIWindow* _h = Amalgame_UI_Window_new(title, width, height);
             if (!_h) return NULL;
-            w->Handle = (i64)(intptr_t)_h;
+            handle = (i64)(intptr_t)_h;
         }
+        w.SetHandle(handle)
         return w
     }
 
@@ -264,17 +287,31 @@ public class Window {
     // game-style render loops.
     public Event Poll() {
         let ev: Event = new Event()
+        let kind: int = 0
+        let x: int = 0
+        let y: int = 0
+        let btn: int = 0
+        let mods: int = 0
+        let w: int = 0
+        let h: int = 0
         @c {
             AmalgameUIEvent _e;
             Amalgame_UI_pollEvent((AmalgameUIWindow*)(intptr_t)self->Handle, &_e);
-            ev->Kind   = _e.kind;
-            ev->X      = _e.x;
-            ev->Y      = _e.y;
-            ev->Button = _e.button;
-            ev->Mods   = _e.mods;
-            ev->W      = _e.w;
-            ev->H      = _e.h;
+            kind = _e.kind;
+            x    = _e.x;
+            y    = _e.y;
+            btn  = _e.button;
+            mods = _e.mods;
+            w    = _e.w;
+            h    = _e.h;
         }
+        ev.SetKind(kind)
+        ev.SetX(x)
+        ev.SetY(y)
+        ev.SetButton(btn)
+        ev.SetMods(mods)
+        ev.SetW(w)
+        ev.SetH(h)
         return ev
     }
 
@@ -282,17 +319,31 @@ public class Window {
     // idle between user interactions.
     public Event Wait() {
         let ev: Event = new Event()
+        let kind: int = 0
+        let x: int = 0
+        let y: int = 0
+        let btn: int = 0
+        let mods: int = 0
+        let w: int = 0
+        let h: int = 0
         @c {
             AmalgameUIEvent _e;
             Amalgame_UI_waitEvent((AmalgameUIWindow*)(intptr_t)self->Handle, &_e);
-            ev->Kind   = _e.kind;
-            ev->X      = _e.x;
-            ev->Y      = _e.y;
-            ev->Button = _e.button;
-            ev->Mods   = _e.mods;
-            ev->W      = _e.w;
-            ev->H      = _e.h;
+            kind = _e.kind;
+            x    = _e.x;
+            y    = _e.y;
+            btn  = _e.button;
+            mods = _e.mods;
+            w    = _e.w;
+            h    = _e.h;
         }
+        ev.SetKind(kind)
+        ev.SetX(x)
+        ev.SetY(y)
+        ev.SetButton(btn)
+        ev.SetMods(mods)
+        ev.SetW(w)
+        ev.SetH(h)
         return ev
     }
 
