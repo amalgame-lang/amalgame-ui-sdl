@@ -434,7 +434,8 @@ static inline code_string Amalgame_UI_DetectOSTheme(void) {
 /* ─── Convenience handle typedefs ──────────────────────── *
  * Kept for backwards compatibility with v0.0.1-dev facade
  * stubs that referenced them. The Amalgame facade carries
- * AmalgameUIWindow*/AmalgameUIFont* directly as i64 handles. */
+ * AmalgameUIWindow* and AmalgameUIFont* directly as i64
+ * handles. */
 
 typedef SDL_Window*   Amalgame_UI_WindowHandle;
 typedef SDL_Renderer* Amalgame_UI_RendererHandle;

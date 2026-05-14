@@ -117,6 +117,59 @@ public class Event {
     }
 }
 
+// ─── Font ──────────────────────────────────────────────
+// Declared before Window because Window.DrawText takes a Font
+// parameter, and the cgen emits classes in source order — Font's
+// typedef must be complete before Window's methods reference it.
+
+public class Font {
+    public Handle: int   // (intptr_t)AmalgameUIFont*
+    public Size: int
+
+    public Font() {
+        this.Handle = 0
+        this.Size = 0
+    }
+
+    // Load a TTF font from disk. Returns null on failure (missing
+    // file, unsupported format, TTF_Init failure).
+    public static Font Load(path: string, size: int) {
+        let f: Font = new Font()
+        f.Size = size
+        @c {
+            AmalgameUIFont* _h = Amalgame_UI_loadFont(path, size);
+            if (!_h) return NULL;
+            f->Handle = (i64)(intptr_t)_h;
+        }
+        return f
+    }
+
+    public void Destroy() {
+        @c {
+            Amalgame_UI_destroyFont((AmalgameUIFont*)(intptr_t)self->Handle);
+        }
+        this.Handle = 0
+    }
+
+    // Returns the rendered width (in pixels) for `text` at this
+    // font's size. Convenience wrapper that drops the height.
+    public int MeasureWidth(text: string) {
+        @c {
+            int w = 0, h = 0;
+            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
+            return w;
+        }
+    }
+
+    public int MeasureHeight(text: string) {
+        @c {
+            int w = 0, h = 0;
+            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
+            return h;
+        }
+    }
+}
+
 // ─── Window ────────────────────────────────────────────
 
 public class Window {
@@ -264,53 +317,3 @@ public class Window {
     }
 }
 
-// ─── Font ──────────────────────────────────────────────
-
-public class Font {
-    public Handle: int   // (intptr_t)AmalgameUIFont*
-    public Size: int
-
-    public Font() {
-        this.Handle = 0
-        this.Size = 0
-    }
-
-    // Load a TTF font from disk. Returns null on failure (missing
-    // file, unsupported format, TTF_Init failure).
-    public static Font Load(path: string, size: int) {
-        let f: Font = new Font()
-        f.Size = size
-        @c {
-            AmalgameUIFont* _h = Amalgame_UI_loadFont(path, size);
-            if (!_h) return NULL;
-            f->Handle = (i64)(intptr_t)_h;
-        }
-        return f
-    }
-
-    public void Destroy() {
-        @c {
-            Amalgame_UI_destroyFont((AmalgameUIFont*)(intptr_t)self->Handle);
-        }
-        this.Handle = 0
-    }
-
-    // Returns the rendered width (in pixels) for `text` at this
-    // font's size. Convenience wrapper around Measure that drops
-    // the height.
-    public int MeasureWidth(text: string) {
-        @c {
-            int w = 0, h = 0;
-            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
-            return w;
-        }
-    }
-
-    public int MeasureHeight(text: string) {
-        @c {
-            int w = 0, h = 0;
-            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
-            return h;
-        }
-    }
-}
