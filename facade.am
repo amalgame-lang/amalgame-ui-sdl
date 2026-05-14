@@ -30,6 +30,14 @@ namespace Amalgame.UI.SDL
 
 // ─── Primitives ────────────────────────────────────────
 
+// Color and Rect carry their components as public fields, but
+// consumer code reads them through Get* methods — the cgen
+// forward-declares external structs as `incomplete typedef`s
+// in consumer translation units, and direct field access on an
+// incomplete typedef is rejected by gcc. Internal facade code
+// (the methods below + Window/Font in this file) still uses
+// `self->R` style since the struct is complete there.
+
 public class Color {
     public R: int
     public G: int
@@ -42,6 +50,11 @@ public class Color {
         this.B = b
         this.A = a
     }
+
+    public int GetR() { return this.R }
+    public int GetG() { return this.G }
+    public int GetB() { return this.B }
+    public int GetA() { return this.A }
 }
 
 public class Rect {
@@ -56,11 +69,23 @@ public class Rect {
         this.W = w
         this.H = h
     }
+
+    public int GetX() { return this.X }
+    public int GetY() { return this.Y }
+    public int GetW() { return this.W }
+    public int GetH() { return this.H }
 }
 
-// ─── Theme ─────────────────────────────────────────────
+// ─── OSTheme ───────────────────────────────────────────
+//
+// Named `OSTheme` (not `Theme`) so consumers can `import
+// Amalgame.UI.SDL` without colliding with a richer `Theme`
+// class that owns colour palettes — e.g. the one shipped by
+// amalgame-ui-forms. The resolver currently rejects fully
+// qualified namespace paths (`Amalgame.UI.SDL.Theme.X()`),
+// so this rename is the path of least surprise.
 
-public class Theme {
+public class OSTheme {
     // Returns "light" or "dark" — the host's current OS color
     // scheme. Probes:
     //   macOS:   `defaults read -g AppleInterfaceStyle`
@@ -115,6 +140,17 @@ public class Event {
         this.W = 0
         this.H = 0
     }
+
+    // Consumer-facing getters — see the Color/Rect note above
+    // for why direct field access from outside the facade .c
+    // doesn't compile.
+    public int GetKind()   { return this.Kind }
+    public int GetX()      { return this.X }
+    public int GetY()      { return this.Y }
+    public int GetButton() { return this.Button }
+    public int GetMods()   { return this.Mods }
+    public int GetW()      { return this.W }
+    public int GetH()      { return this.H }
 }
 
 // ─── Font ──────────────────────────────────────────────

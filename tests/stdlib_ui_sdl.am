@@ -3,11 +3,15 @@ import Amalgame.UI.SDL
 class Program {
     public static void Main() {
         // ── Color ────────────────────────────────────────
+        // Consumer code reads facade-class fields via Get*()
+        // methods — the cgen forward-declares external structs
+        // and gcc rejects direct field access on incomplete
+        // typedefs.
         let c: Color = new Color(255, 128, 64, 200)
-        let cOk: bool = c.R == 255
-        if (cOk) { cOk = c.G == 128 }
-        if (cOk) { cOk = c.B == 64 }
-        if (cOk) { cOk = c.A == 200 }
+        let cOk: bool = c.GetR() == 255
+        if (cOk) { cOk = c.GetG() == 128 }
+        if (cOk) { cOk = c.GetB() == 64 }
+        if (cOk) { cOk = c.GetA() == 200 }
         if (cOk) {
             Console.WriteLine("[PASS] Color fields")
         } else {
@@ -16,18 +20,18 @@ class Program {
 
         // ── Rect ─────────────────────────────────────────
         let r: Rect = new Rect(10, 20, 100, 200)
-        let rOk: bool = r.X == 10
-        if (rOk) { rOk = r.Y == 20 }
-        if (rOk) { rOk = r.W == 100 }
-        if (rOk) { rOk = r.H == 200 }
+        let rOk: bool = r.GetX() == 10
+        if (rOk) { rOk = r.GetY() == 20 }
+        if (rOk) { rOk = r.GetW() == 100 }
+        if (rOk) { rOk = r.GetH() == 200 }
         if (rOk) {
             Console.WriteLine("[PASS] Rect fields")
         } else {
             Console.WriteLine("[FAIL] Rect fields")
         }
 
-        // ── Theme.DetectOS ───────────────────────────────
-        let theme: string = Theme.DetectOS()
+        // ── OSTheme.DetectOS ─────────────────────────────
+        let theme: string = OSTheme.DetectOS()
         if (theme == "light" || theme == "dark") {
             Console.WriteLine("[PASS] DetectOS returns light/dark")
         } else {
@@ -48,10 +52,10 @@ class Program {
 
         // ── Event default state ──────────────────────────
         let e: Event = new Event()
-        let eOk: bool = e.Kind == 0
-        if (eOk) { eOk = e.X == 0 }
-        if (eOk) { eOk = e.Y == 0 }
-        if (eOk) { eOk = e.Button == 0 }
+        let eOk: bool = e.GetKind() == 0
+        if (eOk) { eOk = e.GetX() == 0 }
+        if (eOk) { eOk = e.GetY() == 0 }
+        if (eOk) { eOk = e.GetButton() == 0 }
         if (eOk) {
             Console.WriteLine("[PASS] Event default state")
         } else {
