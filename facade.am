@@ -182,7 +182,9 @@ public class Font {
         this.Size = 0
     }
 
+    public int  GetHandle()       { return this.Handle }
     public void SetHandle(h: int) { this.Handle = h }
+    public int  GetSize()         { return this.Size }
 
     // Load a TTF font from disk. Returns null on failure (missing
     // file, unsupported format, TTF_Init failure).
@@ -348,11 +350,20 @@ public class Window {
     }
 
     // ─── Drawing ──────────────────────────────────────
+    //
+    // Stage every Color/Rect field through Get* into a local int
+    // before the @c block. Direct `c->R` / `r->X` inside @c
+    // requires the struct to be complete in the surrounding TU,
+    // which doesn't hold in the multi-namespace `amc -o test.am
+    // facade.am` compilation path (forward-decl in scope, full
+    // typedef defined later in the same file).
 
     public void Clear(c: Color) {
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
         @c {
-            Amalgame_UI_clear((AmalgameUIWindow*)(intptr_t)self->Handle,
-                              (int)c->R, (int)c->G, (int)c->B);
+            Amalgame_UI_clear((AmalgameUIWindow*)(intptr_t)self->Handle, cr, cg, cb);
         }
     }
 
@@ -363,43 +374,68 @@ public class Window {
     }
 
     public void FillRect(r: Rect, c: Color) {
+        let rx: int = r.GetX()
+        let ry: int = r.GetY()
+        let rw: int = r.GetW()
+        let rh: int = r.GetH()
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
+        let ca: int = c.GetA()
         @c {
             Amalgame_UI_fillRect((AmalgameUIWindow*)(intptr_t)self->Handle,
-                                 (int)r->X, (int)r->Y, (int)r->W, (int)r->H,
-                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+                                 rx, ry, rw, rh, cr, cg, cb, ca);
         }
     }
 
     public void DrawRect(r: Rect, c: Color) {
+        let rx: int = r.GetX()
+        let ry: int = r.GetY()
+        let rw: int = r.GetW()
+        let rh: int = r.GetH()
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
+        let ca: int = c.GetA()
         @c {
             Amalgame_UI_drawRect((AmalgameUIWindow*)(intptr_t)self->Handle,
-                                 (int)r->X, (int)r->Y, (int)r->W, (int)r->H,
-                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+                                 rx, ry, rw, rh, cr, cg, cb, ca);
         }
     }
 
     public void DrawLine(x1: int, y1: int, x2: int, y2: int, c: Color) {
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
+        let ca: int = c.GetA()
         @c {
             Amalgame_UI_drawLine((AmalgameUIWindow*)(intptr_t)self->Handle,
-                                 (int)x1, (int)y1, (int)x2, (int)y2,
-                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+                                 x1, y1, x2, y2, cr, cg, cb, ca);
         }
     }
 
     public void DrawPixel(x: int, y: int, c: Color) {
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
+        let ca: int = c.GetA()
         @c {
             Amalgame_UI_drawPixel((AmalgameUIWindow*)(intptr_t)self->Handle,
-                                  (int)x, (int)y,
-                                  (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+                                  x, y, cr, cg, cb, ca);
         }
     }
 
     public void DrawText(f: Font, text: string, x: int, y: int, c: Color) {
+        let fh: int = f.GetHandle()
+        let cr: int = c.GetR()
+        let cg: int = c.GetG()
+        let cb: int = c.GetB()
+        let ca: int = c.GetA()
         @c {
             Amalgame_UI_drawText((AmalgameUIWindow*)(intptr_t)self->Handle,
-                                 (AmalgameUIFont*)(intptr_t)f->Handle,
+                                 (AmalgameUIFont*)(intptr_t)fh,
                                  text, (int)x, (int)y,
-                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+                                 (int)cr, (int)cg, (int)cb, (int)ca);
         }
     }
 }
