@@ -16,7 +16,7 @@
 
 [package]
 name              = "amalgame-ui-sdl"
-version           = "0.0.2-dev"
+version           = "0.1.0"
 license           = "Apache-2.0"
 description       = "SDL2/SDL3 binding — Window/Surface/Event/Color/Rect + OS theme detection."
 authors           = ["Bastien Mouget"]
