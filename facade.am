@@ -1,26 +1,34 @@
 namespace Amalgame.UI.SDL
 
 // ═══════════════════════════════════════════════════════
-//  facade.am — SDL2/SDL3 binding (v0.0.1-dev scaffold)
+//  facade.am — SDL2/SDL3 binding (v0.0.2-dev)
 // ═══════════════════════════════════════════════════════
 //
-// Public surface (incrementally filled across v0.0.x):
-//   - Window         create / show / close / size / title
-//   - Event          Quit, mouse, keyboard, resize, text input
-//   - Surface        Clear / FillRect / DrawLine / DrawText
-//   - Color          RGBA primitive
-//   - Rect           X/Y/W/H + intersect / contains
+// Public surface:
+//   - Color (R/G/B/A)
+//   - Rect  (X/Y/W/H)
 //   - Theme.DetectOS()  → "light" or "dark"
+//   - Window            create / close / size / title / event poll
+//                       + draw primitives (clear / fill / line / text)
+//   - Event             Kind/X/Y/Button/Mods/W/H + EventKind.* constants
+//   - Font              load / destroy / measure
 //
-// Default backend is SDL2. Compile with -DAMALGAME_UI_USE_SDL3
-// to use SDL3.
+// Status: Window/Event/Font wired against runtime/Amalgame_UI.h.
+// The retained-mode widget toolkit lives in the companion package
+// amalgame-ui-forms.
 //
-// Status v0.0.1-dev: only Theme.DetectOS() is wired. Window /
-// Event / Surface land in v0.0.2.
+// Implementation notes:
+//   - Window and Font carry the underlying C pointer as an `int`
+//     field (i64 at the C level) — facade methods cast it back to
+//     AmalgameUIWindow* / AmalgameUIFont* inside @c blocks.
+//   - Event is a plain data class with no C-side pointer; Poll
+//     fills its fields via a stack-allocated AmalgameUIEvent.
 
 @c {
     #include "Amalgame_UI.h"
 }
+
+// ─── Primitives ────────────────────────────────────────
 
 public class Color {
     public R: int
@@ -50,12 +58,259 @@ public class Rect {
     }
 }
 
+// ─── Theme ─────────────────────────────────────────────
+
 public class Theme {
-    // Returns "light" or "dark" — the host's current OS color scheme.
-    // Falls back to "light" if detection fails.
+    // Returns "light" or "dark" — the host's current OS color
+    // scheme. Probes:
+    //   macOS:   `defaults read -g AppleInterfaceStyle`
+    //   Windows: HKCU\…\Themes\Personalize\AppsUseLightTheme
+    //   Linux:   `gsettings get org.gnome.desktop.interface color-scheme`,
+    //            falls back to $GTK_THEME
+    // Cached after first call.
     public static string DetectOS() {
         @c {
             return (code_string)Amalgame_UI_DetectOSTheme();
+        }
+    }
+}
+
+// ─── EventKind constants ───────────────────────────────
+//
+// Exposed as static getters rather than fields because the
+// bootstrap doesn't accept field initialisers on static slots.
+// Callers write `EventKind.QUIT()` to read the value — one set
+// of parens cheaper than the alternative (algebraic enum +
+// pattern match on every event).
+
+public class EventKind {
+    public static int NONE()          { return 0 }
+    public static int QUIT()          { return 1 }
+    public static int MOUSE_DOWN()    { return 2 }
+    public static int MOUSE_UP()      { return 3 }
+    public static int MOUSE_MOVE()    { return 4 }
+    public static int KEY_DOWN()      { return 5 }
+    public static int KEY_UP()        { return 6 }
+    public static int TEXT_INPUT()    { return 7 }
+    public static int WINDOW_RESIZE() { return 8 }
+}
+
+// ─── Event ─────────────────────────────────────────────
+
+public class Event {
+    public Kind: int     // see EventKind.*
+    public X: int        // mouse coords (kind 2..4)
+    public Y: int
+    public Button: int   // mouse button id, or SDL keycode for kind 5/6
+    public Mods: int     // keyboard modifier bitmask
+    public W: int        // resize width  (kind 8)
+    public H: int        // resize height (kind 8)
+
+    public Event() {
+        this.Kind = 0
+        this.X = 0
+        this.Y = 0
+        this.Button = 0
+        this.Mods = 0
+        this.W = 0
+        this.H = 0
+    }
+}
+
+// ─── Window ────────────────────────────────────────────
+
+public class Window {
+    // Opaque AmalgameUIWindow* stored as int64. Inspected only
+    // from @c blocks; consumer code never reads this directly.
+    public Handle: int
+
+    public Window() {
+        this.Handle = 0
+    }
+
+    // Open a new resizable window. Returns null on failure
+    // (e.g. SDL_Init fails, no DISPLAY on Linux, etc.).
+    public static Window New(title: string, width: int, height: int) {
+        let w: Window = new Window()
+        @c {
+            AmalgameUIWindow* _h = Amalgame_UI_Window_new(title, width, height);
+            if (!_h) return NULL;
+            w->Handle = (i64)(intptr_t)_h;
+        }
+        return w
+    }
+
+    public void Close() {
+        @c {
+            Amalgame_UI_Window_close((AmalgameUIWindow*)(intptr_t)self->Handle);
+        }
+    }
+
+    public bool ShouldClose() {
+        @c {
+            return Amalgame_UI_Window_should_close((AmalgameUIWindow*)(intptr_t)self->Handle);
+        }
+    }
+
+    public int Width() {
+        @c {
+            return Amalgame_UI_Window_width((AmalgameUIWindow*)(intptr_t)self->Handle);
+        }
+    }
+
+    public int Height() {
+        @c {
+            return Amalgame_UI_Window_height((AmalgameUIWindow*)(intptr_t)self->Handle);
+        }
+    }
+
+    public void SetTitle(title: string) {
+        @c {
+            Amalgame_UI_Window_set_title((AmalgameUIWindow*)(intptr_t)self->Handle, title);
+        }
+    }
+
+    // Non-blocking event poll. Returns a fresh Event; .Kind = 0
+    // (EventKind.NONE) when the queue is empty. Suitable for
+    // game-style render loops.
+    public Event Poll() {
+        let ev: Event = new Event()
+        @c {
+            AmalgameUIEvent _e;
+            Amalgame_UI_pollEvent((AmalgameUIWindow*)(intptr_t)self->Handle, &_e);
+            ev->Kind   = _e.kind;
+            ev->X      = _e.x;
+            ev->Y      = _e.y;
+            ev->Button = _e.button;
+            ev->Mods   = _e.mods;
+            ev->W      = _e.w;
+            ev->H      = _e.h;
+        }
+        return ev
+    }
+
+    // Blocking. Used by Forms' Application.Run() so the CPU stays
+    // idle between user interactions.
+    public Event Wait() {
+        let ev: Event = new Event()
+        @c {
+            AmalgameUIEvent _e;
+            Amalgame_UI_waitEvent((AmalgameUIWindow*)(intptr_t)self->Handle, &_e);
+            ev->Kind   = _e.kind;
+            ev->X      = _e.x;
+            ev->Y      = _e.y;
+            ev->Button = _e.button;
+            ev->Mods   = _e.mods;
+            ev->W      = _e.w;
+            ev->H      = _e.h;
+        }
+        return ev
+    }
+
+    // ─── Drawing ──────────────────────────────────────
+
+    public void Clear(c: Color) {
+        @c {
+            Amalgame_UI_clear((AmalgameUIWindow*)(intptr_t)self->Handle,
+                              (int)c->R, (int)c->G, (int)c->B);
+        }
+    }
+
+    public void Present() {
+        @c {
+            Amalgame_UI_present((AmalgameUIWindow*)(intptr_t)self->Handle);
+        }
+    }
+
+    public void FillRect(r: Rect, c: Color) {
+        @c {
+            Amalgame_UI_fillRect((AmalgameUIWindow*)(intptr_t)self->Handle,
+                                 (int)r->X, (int)r->Y, (int)r->W, (int)r->H,
+                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+        }
+    }
+
+    public void DrawRect(r: Rect, c: Color) {
+        @c {
+            Amalgame_UI_drawRect((AmalgameUIWindow*)(intptr_t)self->Handle,
+                                 (int)r->X, (int)r->Y, (int)r->W, (int)r->H,
+                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+        }
+    }
+
+    public void DrawLine(x1: int, y1: int, x2: int, y2: int, c: Color) {
+        @c {
+            Amalgame_UI_drawLine((AmalgameUIWindow*)(intptr_t)self->Handle,
+                                 (int)x1, (int)y1, (int)x2, (int)y2,
+                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+        }
+    }
+
+    public void DrawPixel(x: int, y: int, c: Color) {
+        @c {
+            Amalgame_UI_drawPixel((AmalgameUIWindow*)(intptr_t)self->Handle,
+                                  (int)x, (int)y,
+                                  (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+        }
+    }
+
+    public void DrawText(f: Font, text: string, x: int, y: int, c: Color) {
+        @c {
+            Amalgame_UI_drawText((AmalgameUIWindow*)(intptr_t)self->Handle,
+                                 (AmalgameUIFont*)(intptr_t)f->Handle,
+                                 text, (int)x, (int)y,
+                                 (int)c->R, (int)c->G, (int)c->B, (int)c->A);
+        }
+    }
+}
+
+// ─── Font ──────────────────────────────────────────────
+
+public class Font {
+    public Handle: int   // (intptr_t)AmalgameUIFont*
+    public Size: int
+
+    public Font() {
+        this.Handle = 0
+        this.Size = 0
+    }
+
+    // Load a TTF font from disk. Returns null on failure (missing
+    // file, unsupported format, TTF_Init failure).
+    public static Font Load(path: string, size: int) {
+        let f: Font = new Font()
+        f.Size = size
+        @c {
+            AmalgameUIFont* _h = Amalgame_UI_loadFont(path, size);
+            if (!_h) return NULL;
+            f->Handle = (i64)(intptr_t)_h;
+        }
+        return f
+    }
+
+    public void Destroy() {
+        @c {
+            Amalgame_UI_destroyFont((AmalgameUIFont*)(intptr_t)self->Handle);
+        }
+        this.Handle = 0
+    }
+
+    // Returns the rendered width (in pixels) for `text` at this
+    // font's size. Convenience wrapper around Measure that drops
+    // the height.
+    public int MeasureWidth(text: string) {
+        @c {
+            int w = 0, h = 0;
+            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
+            return w;
+        }
+    }
+
+    public int MeasureHeight(text: string) {
+        @c {
+            int w = 0, h = 0;
+            Amalgame_UI_measureText((AmalgameUIFont*)(intptr_t)self->Handle, text, &w, &h);
+            return h;
         }
     }
 }

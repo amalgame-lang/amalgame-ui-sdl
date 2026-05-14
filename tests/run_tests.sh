@@ -48,7 +48,7 @@ echo "  sdl:     $SDL_LIBS"
 
 FAKE_CACHE="$BUILD_DIR/cache"
 PKG_GIT="github.com/amalgame-lang/amalgame-ui-sdl"
-PKG_TAG="${PKG_TAG:-v0.0.1-dev}"
+PKG_TAG="${PKG_TAG:-v0.0.2-dev}"
 FAKE_SHA="deadbeefcafebabe0000000000000000000000ab"
 SHORT_SHA="${FAKE_SHA:0:8}"
 PKG_CACHE_DIR="$FAKE_CACHE/$PKG_GIT/${PKG_TAG}_${SHORT_SHA}"
@@ -66,6 +66,31 @@ export AMALGAME_PACKAGES_DIR="$FAKE_CACHE"
 echo "  cache:   $FAKE_CACHE → $PKG_ROOT"
 echo ""
 
+# ── Pre-build facade.am → libamalgame-pkg-Window.a ──
+# Mimics what `amc package add` does via PrecompileFacade for
+# packages with [stdlib].facade set. Without this step the
+# generated test.c references Amalgame_UI_SDL_Window_New etc. as
+# unresolved externs and the gcc link fails.
+FACADE_BUILD_DIR="$BUILD_DIR/facade"
+mkdir -p "$FACADE_BUILD_DIR"
+FACADE_ARCHIVE="$FACADE_BUILD_DIR/libamalgame-pkg-Window.a"
+echo "── Pre-compiling facade.am → $(basename "$FACADE_ARCHIVE") ──"
+"$AMC" --lib --quiet "$PKG_ROOT/facade.am" -o "$FACADE_BUILD_DIR/Window-facade" 2>&1 | head -5
+if [ ! -f "$FACADE_BUILD_DIR/Window-facade.c" ]; then
+    echo "ERROR: amc failed to emit Window-facade.c" >&2
+    exit 1
+fi
+gcc -O2 -I"$AMC_RUNTIME" -I"$PKG_RUNTIME" $SDL_CFLAGS -w -c \
+    "$FACADE_BUILD_DIR/Window-facade.c" \
+    -o "$FACADE_BUILD_DIR/Window-facade.o" 2>&1 | head -10
+if [ ! -f "$FACADE_BUILD_DIR/Window-facade.o" ]; then
+    echo "ERROR: gcc failed to build Window-facade.o" >&2
+    exit 1
+fi
+ar rcs "$FACADE_ARCHIVE" "$FACADE_BUILD_DIR/Window-facade.o"
+echo "  built: $FACADE_ARCHIVE"
+echo ""
+
 run_test() {
     local name="$1"; local expected="$2"
     printf "  %-38s" "$name"
@@ -80,7 +105,7 @@ run_test() {
     fi
     if [ ! -f "$out_base.c" ]; then echo -e "${RED}FAIL${NC} (no .c)"; FAIL=$((FAIL + 1)); return; fi
     local gcc_log
-    gcc_log=$(gcc -O2 -I"$AMC_RUNTIME" -I"$PKG_RUNTIME" $SDL_CFLAGS "$out_base.c" \
+    gcc_log=$(gcc -O2 -I"$AMC_RUNTIME" -I"$PKG_RUNTIME" $SDL_CFLAGS "$out_base.c" "$FACADE_ARCHIVE" \
         -lgc -lm -lcurl -lz -ldl -lpthread $SDL_LIBS -o "$out_base" 2>&1)
     if [ ! -x "$out_base" ]; then
         echo -e "${RED}FAIL${NC} (link)"
@@ -88,21 +113,35 @@ run_test() {
         FAIL=$((FAIL + 1)); return
     fi
     local run_output
-    run_output=$("$out_base" 2>&1)
+    # Pump the dummy video driver so SDL_Init succeeds on headless
+    # CI runners. Real DISPLAY (if any) is left alone — set
+    # AMC_UI_SDL_DRIVER=x11 etc. to override locally.
+    run_output=$(SDL_VIDEODRIVER="${AMC_UI_SDL_DRIVER:-dummy}" "$out_base" 2>&1)
     if echo "$run_output" | grep -qF "$expected"; then
         echo -e "${GREEN}PASS${NC}"; PASS=$((PASS + 1))
     else
-        echo -e "${RED}FAIL${NC} (mismatch)"
-        echo "    expected: $expected"
-        echo "    got:      $(echo "$run_output" | head -3 | tr '\n' '|')"
-        FAIL=$((FAIL + 1))
+        # Accept [SKIP] line for tests that gracefully degrade
+        # when SDL can't open a window (e.g. window-open in non-
+        # dummy headless setups). Counts as SKIP, not FAIL.
+        local skip_marker="[SKIP] ${expected#\[PASS\] }"
+        if echo "$run_output" | grep -qF "$skip_marker"; then
+            echo -e "${YELLOW}SKIP${NC}"; SKIP=$((SKIP + 1))
+        else
+            echo -e "${RED}FAIL${NC} (mismatch)"
+            echo "    expected: $expected"
+            echo "    got:      $(echo "$run_output" | head -3 | tr '\n' '|')"
+            FAIL=$((FAIL + 1))
+        fi
     fi
 }
 
 echo "── Amalgame.UI.SDL ────────────────────────"
-run_test "DetectOS returns light/dark"     "[PASS] DetectOS returns light/dark"
 run_test "Color fields"                    "[PASS] Color fields"
 run_test "Rect fields"                     "[PASS] Rect fields"
+run_test "DetectOS returns light/dark"     "[PASS] DetectOS returns light/dark"
+run_test "EventKind constants"             "[PASS] EventKind constants"
+run_test "Event default state"             "[PASS] Event default state"
+run_test "Window open + size"              "[PASS] Window open + size"
 
 echo ""
 echo "────────────────────────────────────────────"

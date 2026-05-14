@@ -2,7 +2,31 @@ import Amalgame.UI.SDL
 
 class Program {
     public static void Main() {
-        // Smoke: DetectOS() returns one of "light" / "dark"
+        // ── Color ────────────────────────────────────────
+        let c: Color = new Color(255, 128, 64, 200)
+        let cOk: bool = c.R == 255
+        if (cOk) { cOk = c.G == 128 }
+        if (cOk) { cOk = c.B == 64 }
+        if (cOk) { cOk = c.A == 200 }
+        if (cOk) {
+            Console.WriteLine("[PASS] Color fields")
+        } else {
+            Console.WriteLine("[FAIL] Color fields")
+        }
+
+        // ── Rect ─────────────────────────────────────────
+        let r: Rect = new Rect(10, 20, 100, 200)
+        let rOk: bool = r.X == 10
+        if (rOk) { rOk = r.Y == 20 }
+        if (rOk) { rOk = r.W == 100 }
+        if (rOk) { rOk = r.H == 200 }
+        if (rOk) {
+            Console.WriteLine("[PASS] Rect fields")
+        } else {
+            Console.WriteLine("[FAIL] Rect fields")
+        }
+
+        // ── Theme.DetectOS ───────────────────────────────
         let theme: string = Theme.DetectOS()
         if (theme == "light" || theme == "dark") {
             Console.WriteLine("[PASS] DetectOS returns light/dark")
@@ -10,20 +34,46 @@ class Program {
             Console.WriteLine("[FAIL] DetectOS returned: " + theme)
         }
 
-        // Smoke: Color constructor populates fields
-        let c: Color = new Color(255, 128, 64, 200)
-        if (c.R == 255 && c.G == 128 && c.B == 64 && c.A == 200) {
-            Console.WriteLine("[PASS] Color fields")
+        // ── EventKind constants ──────────────────────────
+        let ekOk: bool = EventKind.NONE() == 0
+        if (ekOk) { ekOk = EventKind.QUIT() == 1 }
+        if (ekOk) { ekOk = EventKind.MOUSE_DOWN() == 2 }
+        if (ekOk) { ekOk = EventKind.KEY_DOWN() == 5 }
+        if (ekOk) { ekOk = EventKind.WINDOW_RESIZE() == 8 }
+        if (ekOk) {
+            Console.WriteLine("[PASS] EventKind constants")
         } else {
-            Console.WriteLine("[FAIL] Color fields")
+            Console.WriteLine("[FAIL] EventKind constants")
         }
 
-        // Smoke: Rect constructor populates fields
-        let r: Rect = new Rect(10, 20, 100, 200)
-        if (r.X == 10 && r.Y == 20 && r.W == 100 && r.H == 200) {
-            Console.WriteLine("[PASS] Rect fields")
+        // ── Event default state ──────────────────────────
+        let e: Event = new Event()
+        let eOk: bool = e.Kind == 0
+        if (eOk) { eOk = e.X == 0 }
+        if (eOk) { eOk = e.Y == 0 }
+        if (eOk) { eOk = e.Button == 0 }
+        if (eOk) {
+            Console.WriteLine("[PASS] Event default state")
         } else {
-            Console.WriteLine("[FAIL] Rect fields")
+            Console.WriteLine("[FAIL] Event default state")
+        }
+
+        // ── Window open + size (SDL_VIDEODRIVER=dummy) ───
+        // The test runner sets SDL_VIDEODRIVER=dummy so SDL_Init
+        // succeeds on headless CI runners. If init still fails
+        // we degrade to [SKIP] rather than [FAIL].
+        let win: Window = Window.New("smoke", 320, 240)
+        if (win == null) {
+            Console.WriteLine("[SKIP] Window open + size")
+        } else {
+            let wOk: bool = win.Width() == 320
+            if (wOk) { wOk = win.Height() == 240 }
+            if (wOk) {
+                Console.WriteLine("[PASS] Window open + size")
+            } else {
+                Console.WriteLine("[FAIL] Window open + size")
+            }
+            win.Close()
         }
     }
 }
