@@ -10,15 +10,45 @@ ships the retained-mode Forms toolkit on top of this binding.
 
 > **Status: v0.0.1-dev — work in progress.** Public API is being designed.
 
+## Prerequisites
+
+SDL2 + SDL2_ttf development headers at **build time**, plus the
+matching runtime libraries on the **deploy** target.
+
+### Build time (`amc package add` machine)
+
+| OS / distro | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install libsdl2-dev libsdl2-ttf-dev` |
+| Fedora / RHEL | `sudo dnf install SDL2-devel SDL2_ttf-devel` |
+| Arch / Manjaro | `sudo pacman -S sdl2 sdl2_ttf` |
+| Alpine | `apk add sdl2-dev sdl2_ttf-dev` |
+| macOS (Homebrew) | `brew install sdl2 sdl2_ttf` |
+| Windows (MSYS2) | `pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_ttf` |
+
+### Deploy time (target running the user binary)
+
+| OS / distro | Command |
+|---|---|
+| Debian / Ubuntu | `apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0` |
+| Fedora / RHEL | usually pulled in as a dep of `SDL2-devel`; else `dnf install SDL2 SDL2_ttf` |
+| macOS | bundled with Homebrew install above (same runtime) |
+| Windows | ship `SDL2.dll` + `SDL2_ttf.dll` alongside the `.exe`, or use the static-link variant — see below |
+
+### Optional: SDL3
+
+Pass `-DAMALGAME_UI_USE_SDL3` to switch from the default SDL2 to
+SDL3 (the binding header `#ifdef`-switches the function signatures
+that differ). SDL3 packages: `libsdl3-dev` (apt), `sdl3` (brew /
+pacman / pkg), `SDL3-devel` (dnf).
+
 ## Install
 
 ```bash
 amc package add github.com/amalgame-lang/amalgame-ui-sdl@v0.0.1-dev
 ```
 
-Requires **amc 0.8.0+** and SDL2 development headers on the host
-(`libsdl2-dev` on Debian/Ubuntu, `sdl2 sdl2_ttf` on Homebrew,
-`mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_ttf` on MSYS2).
+Requires **amc 0.8.0+**.
 
 ## Backend selection
 
